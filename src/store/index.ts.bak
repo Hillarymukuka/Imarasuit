@@ -1,0 +1,648 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import {
+  CompanyProfile,
+  Client,
+  Document,
+  DocumentType,
+  DocumentFilter,
+  Quotation,
+  Invoice,
+  PurchaseOrder,
+  DeliveryNote,
+  LineItem,
+  DocumentStatus,
+  PDFColor,
+  PDFTemplate,
+  PDFSettings,
+  TaxType,
+  Letter
+} from '@/types';
+import { generateId, generateDocumentNumber, calculateDocumentTotals } from '@/lib/utils';
+import { STORAGE_KEYS, DEFAULT_PDF_SETTINGS, PDF_COLOR_PRESETS } from '@/lib/constants';
+
+// Company Store
+interface CompanyStore {
+  company: CompanyProfile | null;
+  setCompany: (company: CompanyProfile) => void;
+  updateCompany: (updates: Partial<CompanyProfile>) => void;
+  clearCompany: () => void;
+}
+
+export const useCompanyStore = create<CompanyStore>()(
+  persist(
+    (set) => ({
+      company: null,
+      setCompany: (company) => set({ company }),
+      updateCompany: (updates) => set((state) => ({
+        company: state.company ? { ...state.company, ...updates, updatedAt: new Date().toISOString() } : null
+      })),
+      clearCompany: () => set({ company: null }),
+    }),
+    {
+      name: STORAGE_KEYS.COMPANY,
+    }
+  )
+);
+
+// Clients Store
+interface ClientsStore {
+  clients: Client[];
+  addClient: (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Client;
+  updateClient: (id: string, updates: Partial<Client>) => void;
+  deleteClient: (id: string) => void;
+  getClient: (id: string) => Client | undefined;
+}
+
+export const useClientsStore = create<ClientsStore>()(
+  persist(
+    (set, get) => ({
+      clients: [],
+      addClient: (clientData) => {
+        const now = new Date().toISOString();
+        const newClient: Client = {
+          ...clientData,
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((state) => ({ clients: [...state.clients, newClient] }));
+        return newClient;
+      },
+      updateClient: (id, updates) => set((state) => ({
+        clients: state.clients.map((client) =>
+          client.id === id ? { ...client, ...updates, updatedAt: new Date().toISOString() } : client
+        )
+      })),
+      deleteClient: (id) => set((state) => ({
+        clients: state.clients.filter((client) => client.id !== id)
+      })),
+      getClient: (id) => get().clients.find((client) => client.id === id),
+    }),
+    {
+      name: STORAGE_KEYS.CLIENTS,
+    }
+  )
+);
+
+// Documents Store
+interface DocumentsStore {
+  documents: Document[];
+  addDocument: (document: Document) => void;
+  updateDocument: (id: string, updates: Partial<Document>) => void;
+  deleteDocument: (id: string) => void;
+  getDocument: (id: string) => Document | undefined;
+  getDocumentsByType: (type: DocumentType) => Document[];
+  getDocumentsByClient: (clientId: string) => Document[];
+  getFilteredDocuments: (filter: DocumentFilter) => Document[];
+  getDocumentCount: (type: DocumentType) => number;
+  createQuotation: (data: CreateDocumentData) => Quotation;
+  createInvoice: (data: CreateDocumentData & { dueDate: string }) => Invoice;
+  createPurchaseOrder: (data: CreateDocumentData) => PurchaseOrder;
+  createDeliveryNote: (data: CreateDocumentData & { deliveryDate: string }) => DeliveryNote;
+  convertToInvoice: (quotationId: string) => Invoice | null;
+  convertToPurchaseOrder: (sourceId: string) => PurchaseOrder | null;
+  convertToDeliveryNote: (sourceId: string) => DeliveryNote | null;
+  updateDocumentStatus: (id: string, status: DocumentStatus) => void;
+}
+
+interface CreateDocumentData {
+  companyId: string;
+  clientId: string;
+  items: LineItem[];
+  taxType?: TaxType;
+  taxPercent?: number;
+  discount?: number;
+  discountType?: 'percentage' | 'fixed';
+  notes?: string;
+  terms?: string;
+  referenceNumber?: string;
+  validUntil?: string;
+  expectedDeliveryDate?: string;
+}
+
+export const useDocumentsStore = create<DocumentsStore>()(
+  persist(
+    (set, get) => ({
+      documents: [],
+
+      addDocument: (document) => set((state) => ({
+        documents: [...state.documents, document]
+      })),
+
+      updateDocument: (id, updates) => set((state) => ({
+        documents: state.documents.map((doc) =>
+          doc.id === id ? {
+            ...doc,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+            version: doc.version + 1
+          } as Document : doc
+        )
+      })),
+
+      deleteDocument: (id) => set((state) => ({
+        documents: state.documents.filter((doc) => doc.id !== id)
+      })),
+
+      getDocument: (id) => get().documents.find((doc) => doc.id === id),
+
+      getDocumentsByType: (type) => get().documents.filter((doc) => doc.type === type),
+
+      getDocumentsByClient: (clientId) => get().documents.filter((doc) => doc.clientId === clientId),
+
+      getFilteredDocuments: (filter) => {
+        let docs = get().documents;
+
+        if (filter.type) {
+          docs = docs.filter((doc) => doc.type === filter.type);
+        }
+        if (filter.status) {
+          docs = docs.filter((doc) => doc.status === filter.status);
+        }
+        if (filter.clientId) {
+          docs = docs.filter((doc) => doc.clientId === filter.clientId);
+        }
+        if (filter.dateFrom) {
+          docs = docs.filter((doc) => new Date(doc.dateIssued) >= new Date(filter.dateFrom!));
+        }
+        if (filter.dateTo) {
+          docs = docs.filter((doc) => new Date(doc.dateIssued) <= new Date(filter.dateTo!));
+        }
+        if (filter.search) {
+          const searchLower = filter.search.toLowerCase();
+          docs = docs.filter((doc) =>
+            doc.documentNumber.toLowerCase().includes(searchLower) ||
+            doc.referenceNumber?.toLowerCase().includes(searchLower)
+          );
+        }
+
+        return docs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      },
+
+      getDocumentCount: (type) => get().documents.filter((doc) => doc.type === type).length,
+
+      createQuotation: (data) => {
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('quotation');
+        const taxPercent = data.taxPercent || 0;
+        const totals = calculateDocumentTotals(
+          data.items,
+          data.discount || 0,
+          data.discountType || 'fixed',
+          taxPercent
+        );
+
+        const quotation: Quotation = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('quotation', count),
+          type: 'quotation',
+          dateIssued: now,
+          validUntil: data.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          referenceNumber: data.referenceNumber,
+          companyId: data.companyId,
+          clientId: data.clientId,
+          items: data.items,
+          subtotal: totals.subtotal,
+          taxType: data.taxType || 'none',
+          taxPercent: taxPercent,
+          taxTotal: totals.taxTotal,
+          discount: data.discount || 0,
+          discountType: data.discountType || 'fixed',
+          grandTotal: totals.grandTotal,
+          notes: data.notes,
+          terms: data.terms,
+          status: 'draft',
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        set((state) => ({ documents: [...state.documents, quotation] }));
+        return quotation;
+      },
+
+      createInvoice: (data) => {
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('invoice');
+        const taxPercent = data.taxPercent || 0;
+        const totals = calculateDocumentTotals(
+          data.items,
+          data.discount || 0,
+          data.discountType || 'fixed',
+          taxPercent
+        );
+
+        const invoice: Invoice = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('invoice', count),
+          type: 'invoice',
+          dateIssued: now,
+          dueDate: data.dueDate,
+          referenceNumber: data.referenceNumber,
+          companyId: data.companyId,
+          clientId: data.clientId,
+          items: data.items,
+          subtotal: totals.subtotal,
+          taxType: data.taxType || 'none',
+          taxPercent: taxPercent,
+          taxTotal: totals.taxTotal,
+          discount: data.discount || 0,
+          discountType: data.discountType || 'fixed',
+          grandTotal: totals.grandTotal,
+          notes: data.notes,
+          terms: data.terms,
+          status: 'draft',
+          paidAmount: 0,
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        set((state) => ({ documents: [...state.documents, invoice] }));
+        return invoice;
+      },
+
+      createPurchaseOrder: (data) => {
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('purchase_order');
+        const taxPercent = data.taxPercent || 0;
+        const totals = calculateDocumentTotals(
+          data.items,
+          data.discount || 0,
+          data.discountType || 'fixed',
+          taxPercent
+        );
+
+        const po: PurchaseOrder = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('purchase_order', count),
+          type: 'purchase_order',
+          dateIssued: now,
+          expectedDeliveryDate: data.expectedDeliveryDate,
+          referenceNumber: data.referenceNumber,
+          companyId: data.companyId,
+          clientId: data.clientId,
+          items: data.items,
+          subtotal: totals.subtotal,
+          taxType: data.taxType || 'none',
+          taxPercent: taxPercent,
+          taxTotal: totals.taxTotal,
+          discount: data.discount || 0,
+          discountType: data.discountType || 'fixed',
+          grandTotal: totals.grandTotal,
+          notes: data.notes,
+          terms: data.terms,
+          status: 'draft',
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        set((state) => ({ documents: [...state.documents, po] }));
+        return po;
+      },
+
+      createDeliveryNote: (data) => {
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('delivery_note');
+        const taxPercent = data.taxPercent || 0;
+        const totals = calculateDocumentTotals(
+          data.items,
+          data.discount || 0,
+          data.discountType || 'fixed',
+          taxPercent
+        );
+
+        const dn: DeliveryNote = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('delivery_note', count),
+          type: 'delivery_note',
+          dateIssued: now,
+          deliveryDate: data.deliveryDate,
+          referenceNumber: data.referenceNumber,
+          companyId: data.companyId,
+          clientId: data.clientId,
+          items: data.items,
+          subtotal: totals.subtotal,
+          taxType: data.taxType || 'none',
+          taxPercent: taxPercent,
+          taxTotal: totals.taxTotal,
+          discount: data.discount || 0,
+          discountType: data.discountType || 'fixed',
+          grandTotal: totals.grandTotal,
+          notes: data.notes,
+          terms: data.terms,
+          status: 'draft',
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        set((state) => ({ documents: [...state.documents, dn] }));
+        return dn;
+      },
+
+      convertToInvoice: (quotationId) => {
+        const quotation = get().getDocument(quotationId) as Quotation;
+        if (!quotation || quotation.type !== 'quotation') return null;
+
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('invoice');
+
+        const invoice: Invoice = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('invoice', count),
+          type: 'invoice',
+          dateIssued: now,
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          referenceNumber: quotation.documentNumber,
+          companyId: quotation.companyId,
+          clientId: quotation.clientId,
+          items: quotation.items.map(item => ({ ...item, id: generateId() })),
+          subtotal: quotation.subtotal,
+          taxType: quotation.taxType || 'none',
+          taxPercent: quotation.taxPercent || 0,
+          taxTotal: quotation.taxTotal,
+          discount: quotation.discount,
+          discountType: quotation.discountType,
+          grandTotal: quotation.grandTotal,
+          notes: quotation.notes,
+          terms: quotation.terms,
+          status: 'draft',
+          paidAmount: 0,
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        // Update original quotation status to 'accepted'
+        get().updateDocumentStatus(quotationId, 'accepted');
+
+        set((state) => ({ documents: [...state.documents, invoice] }));
+        return invoice;
+      },
+
+      convertToPurchaseOrder: (sourceId) => {
+        const source = get().getDocument(sourceId);
+        if (!source) return null;
+
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('purchase_order');
+
+        const po: PurchaseOrder = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('purchase_order', count),
+          type: 'purchase_order',
+          dateIssued: now,
+          referenceNumber: source.documentNumber,
+          companyId: source.companyId,
+          clientId: source.clientId,
+          items: source.items.map(item => ({ ...item, id: generateId() })),
+          subtotal: source.subtotal,
+          taxType: source.taxType || 'none',
+          taxPercent: source.taxPercent || 0,
+          taxTotal: source.taxTotal,
+          discount: source.discount,
+          discountType: source.discountType,
+          grandTotal: source.grandTotal,
+          notes: source.notes,
+          terms: source.terms,
+          status: 'draft',
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        // Update original document status to 'sent' (for invoices) or 'accepted' (for quotations)
+        if (source.type === 'invoice') {
+          get().updateDocumentStatus(sourceId, 'sent');
+        } else if (source.type === 'quotation') {
+          get().updateDocumentStatus(sourceId, 'accepted');
+        }
+
+        set((state) => ({ documents: [...state.documents, po] }));
+        return po;
+      },
+
+      convertToDeliveryNote: (sourceId) => {
+        const source = get().getDocument(sourceId);
+        if (!source) return null;
+
+        const now = new Date().toISOString();
+        const count = get().getDocumentCount('delivery_note');
+
+        const dn: DeliveryNote = {
+          id: generateId(),
+          documentNumber: generateDocumentNumber('delivery_note', count),
+          type: 'delivery_note',
+          dateIssued: now,
+          deliveryDate: now,
+          referenceNumber: source.documentNumber,
+          companyId: source.companyId,
+          clientId: source.clientId,
+          items: source.items.map(item => ({ ...item, id: generateId() })),
+          subtotal: source.subtotal,
+          taxType: source.taxType || 'none',
+          taxPercent: source.taxPercent || 0,
+          taxTotal: source.taxTotal,
+          discount: source.discount,
+          discountType: source.discountType,
+          grandTotal: source.grandTotal,
+          notes: source.notes,
+          terms: source.terms,
+          status: 'draft',
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+        };
+
+        // Update original document status based on type
+        if (source.type === 'purchase_order') {
+          get().updateDocumentStatus(sourceId, 'sent');
+        } else if (source.type === 'invoice') {
+          get().updateDocumentStatus(sourceId, 'sent');
+        } else if (source.type === 'quotation') {
+          get().updateDocumentStatus(sourceId, 'accepted');
+        }
+
+        set((state) => ({ documents: [...state.documents, dn] }));
+        return dn;
+      },
+
+      updateDocumentStatus: (id, status) => {
+        set((state) => ({
+          documents: state.documents.map((doc) =>
+            doc.id === id ? { ...doc, status, updatedAt: new Date().toISOString() } as Document : doc
+          )
+        }));
+      },
+    }),
+    {
+      name: STORAGE_KEYS.DOCUMENTS,
+    }
+  )
+);
+
+// Theme Store
+interface ThemeStore {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  setTheme: (theme: 'light' | 'dark') => void;
+}
+
+export const useThemeStore = create<ThemeStore>()(
+  persist(
+    (set) => ({
+      theme: 'light',
+      toggleTheme: () => set((state) => ({
+        theme: state.theme === 'light' ? 'dark' : 'light'
+      })),
+      setTheme: (theme) => set({ theme }),
+    }),
+    {
+      name: STORAGE_KEYS.THEME,
+    }
+  )
+);
+
+// UI Store (for modals, sidebars, etc.)
+interface UIStore {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  toggleSidebar: () => void;
+}
+
+export const useUIStore = create<UIStore>((set) => ({
+  sidebarOpen: true,
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+}));
+
+// PDF Settings Store
+interface PDFSettingsStore {
+  settings: PDFSettings;
+  updateSettings: (updates: Partial<PDFSettings>) => void;
+  setSelectedColor: (colorId: string) => void;
+  setTemplate: (template: PDFTemplate) => void;
+  addCustomColor: (color: Omit<PDFColor, 'id'>) => void;
+  removeCustomColor: (colorId: string) => void;
+  updateCustomColor: (colorId: string, updates: Partial<PDFColor>) => void;
+  getActiveColor: () => PDFColor;
+  resetSettings: () => void;
+}
+
+export const usePDFSettingsStore = create<PDFSettingsStore>()(
+  persist(
+    (set, get) => ({
+      settings: DEFAULT_PDF_SETTINGS,
+
+      updateSettings: (updates) => set((state) => ({
+        settings: { ...state.settings, ...updates }
+      })),
+
+      setSelectedColor: (colorId) => set((state) => ({
+        settings: { ...state.settings, selectedColorId: colorId }
+      })),
+
+      setTemplate: (template) => set((state) => ({
+        settings: { ...state.settings, template }
+      })),
+
+      addCustomColor: (color) => {
+        const newColor: PDFColor = {
+          ...color,
+          id: `custom-${generateId()}`,
+        };
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            customColors: [...state.settings.customColors, newColor],
+            selectedColorId: newColor.id,
+          }
+        }));
+      },
+
+      removeCustomColor: (colorId) => set((state) => {
+        const newCustomColors = state.settings.customColors.filter(c => c.id !== colorId);
+        const newSelectedId = state.settings.selectedColorId === colorId
+          ? 'blue'
+          : state.settings.selectedColorId;
+        return {
+          settings: {
+            ...state.settings,
+            customColors: newCustomColors,
+            selectedColorId: newSelectedId,
+          }
+        };
+      }),
+
+      updateCustomColor: (colorId, updates) => set((state) => ({
+        settings: {
+          ...state.settings,
+          customColors: state.settings.customColors.map(c =>
+            c.id === colorId ? { ...c, ...updates } : c
+          )
+        }
+      })),
+
+      getActiveColor: () => {
+        const { settings } = get();
+        const preset = PDF_COLOR_PRESETS.find(c => c.id === settings.selectedColorId);
+        if (preset) return preset;
+        const custom = settings.customColors.find(c => c.id === settings.selectedColorId);
+        if (custom) return custom;
+        return PDF_COLOR_PRESETS[0];
+      },
+
+      resetSettings: () => set({ settings: DEFAULT_PDF_SETTINGS }),
+    }),
+    {
+      name: STORAGE_KEYS.SETTINGS,
+    }
+  )
+);
+
+// Letters Store
+interface LettersStore {
+  letters: Letter[];
+  addLetter: (letter: Omit<Letter, 'id' | 'createdAt' | 'updatedAt'>) => Letter;
+  updateLetter: (id: string, updates: Partial<Letter>) => void;
+  deleteLetter: (id: string) => void;
+  getLetter: (id: string) => Letter | undefined;
+}
+
+export const useLettersStore = create<LettersStore>()(
+  persist(
+    (set, get) => ({
+      letters: [],
+
+      addLetter: (letterData) => {
+        const now = new Date().toISOString();
+        const newLetter: Letter = {
+          ...letterData,
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now,
+        };
+        set((state) => ({ letters: [...state.letters, newLetter] }));
+        return newLetter;
+      },
+
+      updateLetter: (id, updates) => set((state) => ({
+        letters: state.letters.map((letter) =>
+          letter.id === id ? { ...letter, ...updates, updatedAt: new Date().toISOString() } : letter
+        )
+      })),
+
+      deleteLetter: (id) => set((state) => ({
+        letters: state.letters.filter((letter) => letter.id !== id)
+      })),
+
+      getLetter: (id) => get().letters.find((letter) => letter.id === id),
+    }),
+    {
+      name: 'business-suite-letters',
+    }
+  )
+);

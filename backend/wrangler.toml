@@ -1,0 +1,38 @@
+name = "business-suite-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "business-suite-db"
+database_id = "5a611075-5b69-4b7a-9d1d-ed1ce67107e9"
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "media-uploads"
+
+# [ai]
+# binding = "AI"
+# Disabled for local dev – using REST API fallback instead
+
+[vars]
+JWT_SECRET = "change-this-to-a-strong-random-secret-key-in-production"
+FRONTEND_URL = "http://localhost:3000"
+CLOUDFLARE_ACCOUNT_ID = "your_cloudflare_account_id"
+CLOUDFLARE_API_TOKEN = "your_cloudflare_api_token"
+
+# ── OAuth credentials ──
+TWITTER_CLIENT_ID = "your_twitter_client_id"
+TWITTER_CLIENT_SECRET = "your_twitter_client_secret"
+LINKEDIN_CLIENT_ID = "your_linkedin_client_id"
+LINKEDIN_CLIENT_SECRET = "your_linkedin_client_secret"
+# Meta for Developers: https://developers.facebook.com/apps
+FACEBOOK_APP_ID = "your_facebook_app_id"
+FACEBOOK_APP_SECRET = "your_facebook_app_secret"
+# Base URL for OAuth callbacks (must match what's registered in each developer app)
+OAUTH_REDIRECT_BASE = "http://localhost:8787"
+
+# ── Cron: auto-publish scheduled posts every 5 minutes ──
+[triggers]
+crons = ["*/5 * * * *"]
