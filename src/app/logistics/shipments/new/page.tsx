@@ -20,7 +20,6 @@ import { Header, ModuleGuard } from '@/components/layout';
 import { useCompanyStore } from '@/store';
 import { useShipmentsStore, useContainersStore } from '@/modules/logistics/store';
 import { ZAMBIAN_CITIES } from '@/modules/logistics/constants';
-import { printWaybill } from '@/modules/logistics/utils/waybill';
 import type { Container, Shipment } from '@/modules/logistics/types';
 
 interface NewShipmentForm {
@@ -136,7 +135,10 @@ export default function NewShipmentPage() {
                 </Link>
                 {createdShipment && (
                   <button
-                    onClick={() => printWaybill(createdShipment, useCompanyStore.getState().company?.name)}
+                    onClick={async () => {
+                      const { printWaybill } = await import('@/modules/logistics/utils/waybill');
+                      printWaybill(createdShipment, useCompanyStore.getState().company?.name);
+                    }}
                     className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 transition"
                   >
                     <DocumentTextIcon className="w-4 h-4" /> Print Waybill

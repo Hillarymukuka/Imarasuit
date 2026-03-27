@@ -17,7 +17,6 @@ import { useCompanyStore } from '@/store';
 import { useShipmentsStore } from '@/modules/logistics/store';
 import type { Shipment, ShipmentStatus, UpdateShipmentStatusData } from '@/modules/logistics/types';
 import { SHIPMENT_STATUS_ORDER } from '@/modules/logistics/constants';
-import { printWaybill } from '@/modules/logistics/utils/waybill';
 
 const STATUS_COLORS: Record<string, string> = {
   registered: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
@@ -199,7 +198,10 @@ export default function ShipmentsPage() {
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button
-                                onClick={() => printWaybill(s, companyName)}
+                                onClick={async () => {
+                                  const { printWaybill } = await import('@/modules/logistics/utils/waybill');
+                                  printWaybill(s, companyName);
+                                }}
                                 className="p-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition" title="Print Waybill"
                               >
                                 <PrinterIcon className="w-4 h-4 text-purple-500" />
