@@ -11,7 +11,6 @@ import { usePDFSettingsStore } from '@/store/pdf-settings-store';
 import { createLineItem, formatCurrency, formatDate } from '@/lib/utils';
 import { DOCUMENT_TYPE_LABELS } from '@/lib/constants';
 import { Client, Document, LineItem, DocumentType, DocumentStatus } from '@/types';
-import { generateDocumentPDF, downloadPDF } from '@/lib/pdf-generator';
 import { generateEmailSubject, generateEmailBody, openMailClient } from '@/lib/email-service';
 
 // ── Action type union ───────────────────────────────────────────
@@ -1097,6 +1096,7 @@ export async function executeERPAction(action: ERPAction): Promise<ERPActionResu
         const pdfSettings = usePDFSettingsStore.getState().settings;
 
         try {
+          const { generateDocumentPDF, downloadPDF } = await import('@/lib/pdf-generator');
           const blob = await generateDocumentPDF({ document: doc, company, client, pdfSettings: pdfSettings || undefined });
           const filename = `${doc.documentNumber.replace(/\s+/g, '_')}.pdf`;
           downloadPDF(blob, filename);

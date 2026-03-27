@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -23,7 +21,6 @@ import { useCompanyStore } from '@/store';
 import { useShipmentsStore } from '@/modules/logistics/store';
 import type { Shipment, StatusHistoryEntry, ShipmentStatus, UpdateShipmentStatusData } from '@/modules/logistics/types';
 import { SHIPMENT_STATUS_ORDER } from '@/modules/logistics/constants';
-import { printWaybill, printDeliveryReceipt } from '@/modules/logistics/utils/waybill';
 
 const STATUS_COLORS: Record<string, string> = {
   registered: 'bg-gray-100 text-gray-700',
@@ -98,7 +95,7 @@ export default function ShipmentDetailPage() {
           actions={
             <div className="flex gap-2">
               <button
-                onClick={() => printWaybill(shipment, companyName)}
+                onClick={async () => { const { printWaybill } = await import('@/modules/logistics/utils/waybill'); printWaybill(shipment, companyName); }}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-2.5 py-1.5 sm:px-4 sm:py-2 text-sm font-medium text-white hover:bg-purple-700 transition"
               >
                 <PrinterIcon className="w-4 h-4 flex-shrink-0" />
@@ -501,7 +498,8 @@ function ReceiptPromptModal({
   shipment: Shipment;
   onClose: () => void;
 }) {
-  const handlePrintReceipt = () => {
+  const handlePrintReceipt = async () => {
+    const { printDeliveryReceipt } = await import('@/modules/logistics/utils/waybill');
     printDeliveryReceipt(shipment);
   };
 

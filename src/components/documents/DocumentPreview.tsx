@@ -12,7 +12,6 @@ import {
 } from '@heroicons/react/24/solid';
 import { Button, Card, CardContent, CardHeader, Input, Textarea } from '@/components/ui';
 import { Document, CompanyProfile, Client, Invoice, Quotation, PurchaseOrder, DeliveryNote } from '@/types';
-import { generateDocumentPDF, downloadPDF } from '@/lib/pdf-generator';
 import { formatCurrency, formatDate, formatDateForInput } from '@/lib/utils';
 import { DOCUMENT_TYPE_LABELS } from '@/lib/constants';
 import { useDocumentsStore, usePDFSettingsStore } from '@/store';
@@ -54,6 +53,7 @@ export function DocumentPreview({ document, company, client, onClose }: Document
   const generatePDF = async (doc: Document = document) => {
     setIsGenerating(true);
     try {
+      const { generateDocumentPDF } = await import('@/lib/pdf-generator');
       const blob = await generateDocumentPDF({ document: doc, company, client, pdfSettings });
       const url = URL.createObjectURL(blob);
       if (pdfUrl) {
@@ -78,6 +78,7 @@ export function DocumentPreview({ document, company, client, onClose }: Document
   }, [pdfSettings.selectedColorId, pdfSettings.showLogo, pdfSettings.logoSize, pdfSettings.showBankInfo, pdfSettings.showTerms, pdfSettings.footerText, pdfSettings.customColors.length]);
 
   const handleDownload = async () => {
+    const { generateDocumentPDF, downloadPDF } = await import('@/lib/pdf-generator');
     const blob = await generateDocumentPDF({ document, company, client, pdfSettings });
     const clientSlug = client.name.replace(/\s+/g, '_');
     downloadPDF(blob, `${document.documentNumber}_${clientSlug}.pdf`);

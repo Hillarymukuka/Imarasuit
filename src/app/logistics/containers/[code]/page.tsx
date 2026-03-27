@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -25,7 +23,6 @@ import { Header, ModuleGuard } from '@/components/layout';
 import { useCompanyStore } from '@/store';
 import { useContainersStore } from '@/modules/logistics/store';
 import type { ContainerDetail, ContainerStatus, Shipment } from '@/modules/logistics/types';
-import { printWaybill } from '@/modules/logistics/utils/waybill';
 
 const CONTAINER_STATUS_ORDER: ContainerStatus[] = ['loading', 'dispatched', 'in_transit', 'arrived', 'delivered'];
 
@@ -222,7 +219,7 @@ export default function ContainerDetailPage() {
                         <div className="flex items-center gap-1">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${SHIPMENT_STATUS_COLORS[s.status]}`}>{s.status.replace('_', ' ')}</span>
                           <button
-                            onClick={() => printWaybill(s, useCompanyStore.getState().company?.name)}
+                            onClick={async () => { const { printWaybill } = await import('@/modules/logistics/utils/waybill'); printWaybill(s, useCompanyStore.getState().company?.name); }}
                             className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
                             title="Print Waybill"
                           >

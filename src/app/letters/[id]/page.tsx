@@ -9,7 +9,6 @@ import { Header } from '@/components/layout';
 import { Button, Card, CardContent } from '@/components/ui';
 import { useLettersStore, useCompanyStore, usePDFSettingsStore } from '@/store';
 import { formatDate } from '@/lib/utils';
-import { generateLetterPDF, downloadPDF } from '@/lib/pdf-generator';
 import { PDFColorSettings } from '@/components/documents';
 
 export default function LetterViewPage() {
@@ -27,6 +26,7 @@ export default function LetterViewPage() {
 
         setIsGenerating(true);
         try {
+            const { generateLetterPDF, downloadPDF } = await import('@/lib/pdf-generator');
             const blob = await generateLetterPDF(letter, company, settings);
             downloadPDF(blob, `${letter.title.replace(/\s+/g, '_')}.pdf`);
         } catch (error) {

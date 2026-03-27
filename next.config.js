@@ -5,9 +5,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Prevent heavy Node.js-only packages from leaking into server/edge bundles.
-  // These are 'use client' only — they must never be server-side bundled.
-  serverExternalPackages: ['jspdf', 'jspdf-autotable', 'pdfjs-dist', 'qrcode', 'canvas'],
+
   webpack: (config, { isServer }) => {
     // pdfjs-dist uses canvas on Node — stub it out
     config.resolve.alias.canvas = false;
