@@ -21,6 +21,8 @@ dist/
 # Cloudflare / Wrangler
 .wrangler/
 wrangler.toml.bak
+.open-next/
+.dev.vars
 
 # OS files
 .DS_Store

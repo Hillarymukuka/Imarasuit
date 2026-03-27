@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Next.js API route: proxies Facebook's Data Deletion callback to the backend.
 // Facebook sends a POST with a `signed_request` form field to this URL.
 // Register https://<your-domain>/api/facebook/data-deletion in:

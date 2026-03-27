@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 // Proxies the deletion status lookup to the backend.
 // Called by the /deletion-status frontend page.
 

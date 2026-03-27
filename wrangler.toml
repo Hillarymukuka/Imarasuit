@@ -1,4 +1,11 @@
 name = "business-suite"
-pages_build_output_dir = ".vercel/output/static"
-compatibility_date = "2024-09-23"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://business-suite-api.hillarymukuka.workers.dev/api"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"

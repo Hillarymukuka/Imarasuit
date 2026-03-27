@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { EnvelopeIcon, ArrowDownTrayIcon, PencilIcon, TrashIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
