@@ -1,0 +1,5 @@
+# Cloudflare Pages configuration
+# This file is used by @cloudflare/next-on-pages to configure the build
+name = "business-suite"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
