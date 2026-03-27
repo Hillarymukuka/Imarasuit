@@ -1,23 +1,16 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { EnvelopeIcon, CheckIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { Header } from '@/components/layout';
 import { Button, Card, CardContent, Input, Textarea } from '@/components/ui';
 import { useLettersStore, useCompanyStore } from '@/store';
 import { Address } from '@/types';
 
-interface EditLetterPageProps {
-    params: {
-        id: string;
-    };
-}
-
-export default function EditLetterPage({ params }: EditLetterPageProps) {
+export default function EditLetterPage() {
     const router = useRouter();
+    const params = useParams<{ id: string }>();
     const { getLetter, updateLetter } = useLettersStore();
     const { company } = useCompanyStore();
 

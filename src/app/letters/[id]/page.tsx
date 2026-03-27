@@ -1,9 +1,7 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { EnvelopeIcon, ArrowDownTrayIcon, PencilIcon, TrashIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { Header } from '@/components/layout';
 import { Button, Card, CardContent } from '@/components/ui';
@@ -12,14 +10,9 @@ import { formatDate } from '@/lib/utils';
 import { generateLetterPDF, downloadPDF } from '@/lib/pdf-generator';
 import { PDFColorSettings } from '@/components/documents';
 
-interface LetterViewPageProps {
-    params: {
-        id: string;
-    };
-}
-
-export default function LetterViewPage({ params }: LetterViewPageProps) {
+export default function LetterViewPage() {
     const router = useRouter();
+    const params = useParams<{ id: string }>();
     const { getLetter, deleteLetter } = useLettersStore();
     const { company } = useCompanyStore();
     const { settings } = usePDFSettingsStore();
