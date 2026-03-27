@@ -146,12 +146,12 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
 
           {/* Logo */}
-          <div className="flex items-center justify-between h-36 px-5">
+          <div className="flex items-center justify-between h-20 lg:h-36 px-5">
             <Link href="/" className="flex items-center">
               <img
                 src="/Logos/Logo%20Design_word%20mark%20light.svg"
                 alt="Imara Suite"
-                className="h-24 w-auto max-w-[180px]"
+                className="h-14 lg:h-24 w-auto max-w-[180px]"
               />
             </Link>
             <button
@@ -163,7 +163,7 @@ export function Sidebar() {
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-3 px-3 space-y-1 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto py-3 px-3 space-y-1 sidebar-scroll">
 
             {/* Core: Overview */}
             <nav className="space-y-0.5 mb-2">
