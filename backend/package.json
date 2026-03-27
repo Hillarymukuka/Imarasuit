@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:init:local": "wrangler d1 execute business-suite-db --local --file=src/db/schema.sql",
-    "db:init:remote": "wrangler d1 execute business-suite-db --remote --file=src/db/schema.sql"
+    "db:init:remote": "wrangler d1 execute business-suite-db --remote --file=src/db/schema.sql",
+    "db:init:financials:remote": "wrangler d1 execute business-suite-db --remote --file=src/modules/financials/schema.sql"
   },
   "dependencies": {
     "hono": "^4.0.0"

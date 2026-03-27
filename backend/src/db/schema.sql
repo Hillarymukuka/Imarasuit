@@ -424,3 +424,38 @@ CREATE INDEX IF NOT EXISTS idx_maas_posts_company ON maas_posts(company_id);
 CREATE INDEX IF NOT EXISTS idx_maas_posts_campaign ON maas_posts(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_maas_posts_status ON maas_posts(status);
 CREATE INDEX IF NOT EXISTS idx_maas_posts_scheduled ON maas_posts(scheduled_at);
+
+-- ================================================================
+-- Financials Module
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS financial_expenses (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  company TEXT NOT NULL DEFAULT '',
+  description TEXT DEFAULT '',
+  amount REAL NOT NULL DEFAULT 0,
+  month TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS financial_invoices (
+  id TEXT PRIMARY KEY,
+  company_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  client TEXT NOT NULL DEFAULT '',
+  description TEXT DEFAULT '',
+  total REAL NOT NULL DEFAULT 0,
+  month TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_expenses_company ON financial_expenses(company_id);
+CREATE INDEX IF NOT EXISTS idx_financial_expenses_month ON financial_expenses(month);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_company ON financial_invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_financial_invoices_month ON financial_invoices(month);

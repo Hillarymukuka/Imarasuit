@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Required for Cloudflare Pages edge runtime
+  images: {
+    unoptimized: true,
+  },
   webpack: (config, { isServer }) => {
     // pdfjs-dist uses canvas on Node — stub it out
     config.resolve.alias.canvas = false;
