@@ -65,4 +65,4 @@ Logistics App/
 *.lnk
 
 # Misc folders that may appear at root
-Financials/
+/Financials/
